@@ -85,6 +85,35 @@ describe("findAll", function () {
       },
     ]);
   });
+
+  test("works: with filter", async function () {
+    let companies = await Company.findAll({minEmployees: 1, maxEmployees: 2});
+    expect(companies).toEqual([
+      {
+        handle: "c1",
+        name: "C1",
+        description: "Desc1",
+        numEmployees: 1,
+        logoUrl: "http://c1.img",
+      },
+      {
+        handle: "c2",
+        name: "C2",
+        description: "Desc2",
+        numEmployees: 2,
+        logoUrl: "http://c2.img",
+      }
+    ]);
+  });
+
+  test("with filter: throws error if minEmployees is greater than maxEmployees", async function(){
+    try {
+      let companies = await Company.findAll({minEmployees: 3, maxEmployees: 1});
+      fail();
+    } catch (err) {
+      expect(err instanceof BadRequestError).toBeTruthy();
+    }
+  })
 });
 
 /************************************** get */

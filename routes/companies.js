@@ -52,7 +52,8 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
 
 router.get("/", async function (req, res, next) {
   try {
-    const companies = await Company.findAll();
+    //if req.body.filters exists, findAll will return all companies by the appropriate filter; otherwise, it will return all companies in the database.
+    let companies = await Company.findAll(req.body.filters);
     return res.json({ companies });
   } catch (err) {
     return next(err);

@@ -15,7 +15,6 @@ function sqlForPartialUpdate(dataToUpdate, jsToSql) {
   const keys = Object.keys(dataToUpdate);
   //if there are no keys, then throw an error because no data was provided for the update process
   if (keys.length === 0) throw new BadRequestError("No data");
-
   //This prepares the keys to be set to an array number in the sql query.  It will assign the key to equal its appropriate index value according to the sequal array. If the key is in js syntax (camelCase) and not in appropriate sql syntax (using snake_case), then the key will be reassigned an appropriate sql name by referring to the jsToSql translation object.
   // {firstName: 'Aliya', age: 32} => ['"first_name"=$1', '"age"=$2']
   const cols = keys.map((colName, idx) =>
@@ -30,4 +29,34 @@ function sqlForPartialUpdate(dataToUpdate, jsToSql) {
   };
 }
 
-module.exports = { sqlForPartialUpdate };
+function filterBy(filterData){
+  //grabs the keys from the filter data object
+  const keys = Object.keys(filterData);
+  //from the keys, returns appropriate sql query WHERE statements with reference to the appropriate array index number
+  const cols = keys.map((colName, idx) =>{
+      if(colName === "name"){
+        return `"name" ILIKE $${idx + 1}`
+      }
+      else if(colName === "minEmployees"){
+        return `"num_employees" >= $${idx + 1}`
+      } 
+      else if(colName === "maxEmployees"){
+        return `"num_employees" <= $${idx + 1}`
+      } else {
+        throw new BadRequestError(`${colName} is not an appropriate filter option`);
+      }
+  }) 
+  //grabs the values from the filter data object
+  const values = Object.values(filterData);
+  //checks to see whether the value is a number or not.  If it is a number, it returns the number.  If it is not a number, it returns a sql version of the string using the percent sign sql syntax (example: "%filter%") as a sql filter string. 
+  const valuesArray = values.map(value =>
+    typeof value === 'number'? value : `%${value}%`
+  )
+  return {
+    //joins with " AND " to connect the sql strings for the WHERE portion of the sql query 
+    filterCols: cols.join(" AND "),
+    values: valuesArray,
+  };
+}
+module.exports = { sqlForPartialUpdate, filterBy };
+
