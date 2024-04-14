@@ -2,7 +2,7 @@
 
 const db = require("../db");
 const { BadRequestError, NotFoundError } = require("../expressError");
-const { sqlForPartialUpdate, filterBy } = require("../helpers/sql");
+const { sqlForPartialUpdate, filterCompBy } = require("../helpers/sql");
 
 /** Related functions for companies. */
 
@@ -62,15 +62,15 @@ class Company {
            FROM companies
            ORDER BY name`);
           }
-    //if filterBy includes data, alter the db query appropriately to filter the data
+    //if filterCompBy includes data, alter the db query appropriately to filter the data
     else{
       //if minEmployees is higher than maxEmployees, then the app will throw an error since that is not a possible scenario
       if(filterData.minEmployees > filterData.maxEmployees){
         throw new BadRequestError(`The filter minEmployees cannot by greater than the filter maxEmployees`);
       }
-      //call the helper function "filterBy" passing in the filterData
+      //call the helper function "filterCompBy" passing in the filterData
       //this will return an appropriate string that can be passed in the sql query after the word "WHERE"-- this will appropriately filter out the sql data
-      const { filterCols, values } = filterBy(filterData);
+      const { filterCols, values } = filterCompBy(filterData);
       const querySql = `SELECT handle,
                   name,
                   description,

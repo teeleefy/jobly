@@ -1,7 +1,7 @@
 "use strict";
 
 const { BadRequestError } = require("../expressError");
-const { sqlForPartialUpdate, filterBy } = require("./sql.js");
+const { sqlForPartialUpdate, filterCompBy } = require("./sql.js");
 
 /***************************************/
 
@@ -35,7 +35,7 @@ describe("sqlForPartialUpdate", function () {
   });
 })
 
-describe("filterBy", function () {
+describe("filterCompBy", function () {
   const allFilterData = {
     name: "dav",
     minEmployees: 1,
@@ -52,7 +52,7 @@ describe("filterBy", function () {
   };
 
   test("works when all filters applied", async function () {
-    let { filterCols, values } = filterBy(allFilterData);
+    let { filterCols, values } = filterCompBy(allFilterData);
     expect(filterCols).toEqual(
         '"name" ILIKE $1 AND "num_employees" >= $2 AND "num_employees" <= $3'
     );
@@ -60,7 +60,7 @@ describe("filterBy", function () {
   });
 
   test("works when only min and max filters applied", async function () {
-    let { filterCols, values } = filterBy(minMaxFilterData);
+    let { filterCols, values } = filterCompBy(minMaxFilterData);
     expect(filterCols).toEqual(
         '"num_employees" >= $1 AND "num_employees" <= $2'
     );
@@ -68,7 +68,7 @@ describe("filterBy", function () {
   });
 
   test("works when only max filter is applied", async function () {
-    let { filterCols, values } = filterBy(maxFilterData);
+    let { filterCols, values } = filterCompBy(maxFilterData);
     expect(filterCols).toEqual(
         '"num_employees" <= $1'
     );
@@ -77,7 +77,7 @@ describe("filterBy", function () {
 
   test("throws error when no inappropriate data is provided", async function () {
     try {
-      let { setCols, values } = filterBy({notAnAppropriateFilter: "irrelevant"});
+      let { setCols, values } = filterCompBy({notAnAppropriateFilter: "irrelevant"});
       fail();
     } catch (err) {
       expect(err instanceof BadRequestError).toBeTruthy();

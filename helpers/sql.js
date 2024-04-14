@@ -29,7 +29,7 @@ function sqlForPartialUpdate(dataToUpdate, jsToSql) {
   };
 }
 
-function filterBy(filterData){
+function filterCompBy(filterData){
   //grabs the keys from the filter data object
   const keys = Object.keys(filterData);
   //from the keys, returns appropriate sql query WHERE statements with reference to the appropriate array index number
@@ -58,5 +58,5 @@ function filterBy(filterData){
     values: valuesArray,
   };
 }
-module.exports = { sqlForPartialUpdate, filterBy };
+module.exports = { sqlForPartialUpdate, filterCompBy };
 
