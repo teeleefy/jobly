@@ -1,7 +1,7 @@
 "use strict";
 
 const { BadRequestError } = require("../expressError");
-const { sqlForPartialUpdate, filterCompBy } = require("./sql.js");
+const { sqlForPartialUpdate, filterCompBy, filterJobBy } = require("./sql.js");
 
 /***************************************/
 
@@ -78,6 +78,56 @@ describe("filterCompBy", function () {
   test("throws error when no inappropriate data is provided", async function () {
     try {
       let { setCols, values } = filterCompBy({notAnAppropriateFilter: "irrelevant"});
+      fail();
+    } catch (err) {
+      expect(err instanceof BadRequestError).toBeTruthy();
+    }
+  });
+})
+
+describe("filterJobBy", function () {
+  const allFilterData = {
+    title: "job",
+    minSalary: 90000,
+    hasEquity: true
+  };
+
+  const falseEquityFilterData = {
+    minSalary: 90000,
+    hasEquity: false
+  };
+
+  const minSalaryOnlyFilterData = {
+    minSalary: 90000
+  };
+
+  test("works when all filters applied", async function () {
+    let { filterCols, values } = filterJobBy(allFilterData);
+    expect(filterCols).toEqual(
+        '"title" ILIKE $1 AND "salary" >= $2 AND "equity" > 0'
+    );
+    expect(values).toEqual(["%job%", 90000]);
+  });
+
+  test("works when hasEquity is set to false and one other filter is applied", async function () {
+    let { filterCols, values } = filterJobBy(falseEquityFilterData);
+    expect(filterCols).toEqual(
+        '"salary" >= $1'
+    );
+    expect(values).toEqual([90000]);
+  });
+
+  test("works when only one filter is applied", async function () {
+    let { filterCols, values } = filterJobBy(minSalaryOnlyFilterData);
+    expect(filterCols).toEqual(
+        '"salary" >= $1'
+    );
+    expect(values).toEqual([90000]);
+  });
+
+  test("throws error when no inappropriate data is provided", async function () {
+    try {
+      let { setCols, values } = filterJobBy({notAnAppropriateFilter: "irrelevant"});
       fail();
     } catch (err) {
       expect(err instanceof BadRequestError).toBeTruthy();

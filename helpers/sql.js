@@ -58,5 +58,54 @@ function filterCompBy(filterData){
     values: valuesArray,
   };
 }
-module.exports = { sqlForPartialUpdate, filterCompBy };
+
+function filterJobBy(filterData){
+  //grabs the keys from the filter data object
+  const keys = Object.keys(filterData);
+//grabs the values from the filter data object
+  const values = Object.values(filterData);
+
+  //from the keys, returns appropriate sql query WHERE statements with reference to the appropriate array index number
+  const cols = keys.map((colName, idx) =>{
+      if(colName === "title"){
+        return `"title" ILIKE $${idx + 1}`
+      }
+      else if(colName === "minSalary"){
+        return `"salary" >= $${idx + 1}`
+      } 
+      else if(colName === "hasEquity"){
+        if(filterData["hasEquity"] === true){
+        return `"equity" > 0`}
+        //if hasEquity is false, then it will return -1. It will then be filtered out in the variable below called "checkedCols"
+        else{
+          return -1;
+        }
+      } else {
+        throw new BadRequestError(`${colName} is not an appropriate filter option`);
+      }
+  }) 
+  
+  //filter out "hasEquity" from the sql statement if hasEquity was false (which returned -1)
+  const checkedCols = cols.filter(col => col !== -1);
+
+  //checks to see whether the value is a number or not.  If it is a number, it returns the number.  If it is not a number, it returns a sql version of the string using the percent sign sql syntax (example: "%filter%") as a sql filter string. 
+  const valuesArray = values.map(value => {
+    if (typeof(value) === 'boolean'){
+      return -1;
+    } else if (typeof value === 'number'){
+      return value;
+    } else {
+      return `%${value}%`;
+  }}
+  )
+  //filter out hasEquity value (its value not being necessary to the sql query)
+  const checkedVals = valuesArray.filter(val => val !== -1);
+
+  return {
+    //joins with " AND " to connect the sql strings for the WHERE portion of the sql query 
+    filterCols: checkedCols.join(" AND "),
+    values: checkedVals,
+  };
+}
+module.exports = { sqlForPartialUpdate, filterCompBy, filterJobBy };
 
