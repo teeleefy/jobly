@@ -358,3 +358,61 @@ describe("DELETE /users/:username", function () {
     expect(resp.statusCode).toEqual(404);
   });
 });
+
+/************************************** POST /users/:username/jobs/:id */
+
+describe("POST /users/:username/jobs/:id", function () {
+  test("works for admin: create application", async function () {
+    let res1 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+           VALUES ('j10', 75000, 0.5, 'c1') RETURNING id`);
+    let job1 = res1.rows[0];
+    let jobId1 = job1.id;
+
+    const resp = await request(app)
+        .post(`/users/u1/jobs/${jobId1}`)
+        .set("authorization", `Bearer ${adminToken}`);
+    expect(resp.statusCode).toEqual(201);
+    expect(resp.body).toEqual({
+      application: {
+        username: "u1",
+        jobId: +`${jobId1}`
+      }
+    });
+  });
+
+  test("works for user submitting own application", async function () {
+    let res1 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+           VALUES ('j10', 75000, 0.5, 'c1') RETURNING id`);
+    let job1 = res1.rows[0];
+    let jobId1 = job1.id;
+
+    const resp = await request(app)
+        .post(`/users/u1/jobs/${jobId1}`)
+        .set("authorization", `Bearer ${u1Token}`);
+    expect(resp.statusCode).toEqual(201);
+    expect(resp.body).toEqual({
+      application: {
+        username: "u1",
+        jobId: +`${jobId1}`
+      }
+    });
+  });
+
+  test("unauth for anon", async function () {
+    let res1 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+           VALUES ('j10', 75000, 0.5, 'c1') RETURNING id`);
+    let job1 = res1.rows[0];
+    let jobId1 = job1.id;
+
+    const resp = await request(app)
+        .post(`/users/u1/jobs/${jobId1}`);
+    expect(resp.statusCode).toEqual(401);
+  });
+
+  test("bad request if invalid data", async function () {
+    const resp = await request(app)
+        .post("/users/u1/jobs/0.123")
+        .set("authorization", `Bearer ${adminToken}`);
+    expect(resp.statusCode).toEqual(400);
+  });
+});

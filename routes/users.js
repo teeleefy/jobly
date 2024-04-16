@@ -11,6 +11,7 @@ const User = require("../models/user");
 const { createToken } = require("../helpers/tokens");
 const userNewSchema = require("../schemas/userNew.json");
 const userUpdateSchema = require("../schemas/userUpdate.json");
+const applicationNewSchema = require("../schemas/applicationNew.json");
 
 const router = express.Router();
 
@@ -117,6 +118,29 @@ router.delete("/:username", ensureAdminOrCorrectUser, async function (req, res, 
     return next(err);
   }
 });
+
+/** POST /users/:username/jobs/:id =>  { application: {username, id} }
+ *
+ * Authorization required: admin or correct user
+**/
+
+router.post("/:username/jobs/:id", ensureAdminOrCorrectUser, async function (req, res, next) {
+  try {
+    let username = req.params.username;
+    let id = +req.params.id;
+    let data = {username, id};
+    const validator = jsonschema.validate(data, applicationNewSchema);
+    if (!validator.valid) {
+      const errs = validator.errors.map(e => e.stack);
+      throw new BadRequestError(errs);
+    }
+    const application = await User.applyForJob(req.params);
+    return res.status(201).json({ application });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 
 
 module.exports = router;

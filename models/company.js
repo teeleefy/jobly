@@ -93,21 +93,20 @@ class Company {
    **/
 
   static async get(handle) {
+    //builds object in sql that provides company data along with associated jobs
     const companyRes = await db.query(
-          `SELECT handle,
+          `SELECT json_build_object ('handle', handle, 'name',
                   name,
-                  description,
-                  num_employees AS "numEmployees",
-                  logo_url AS "logoUrl"
-           FROM companies
-           WHERE handle = $1`,
+                  'description', description, 'numEmployees',
+                  num_employees, 'logoUrl',
+                  logo_url, 'jobs', array_agg(json_build_object('id', jobs.id, 'title', jobs.title, 'salary', jobs.salary, 'equity', jobs.equity)))
+           FROM companies JOIN jobs ON companies.handle = jobs.company_handle
+           WHERE companies.handle = $1 GROUP BY companies.handle;`,
         [handle]);
-
     const company = companyRes.rows[0];
-
     if (!company) throw new NotFoundError(`No company: ${handle}`);
 
-    return company;
+    return company.json_build_object;
   }
 
   /** Update company data with `data`.

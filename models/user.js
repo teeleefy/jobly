@@ -118,13 +118,33 @@ class User {
   /** Given a username, return data about user.
    *
    * Returns { username, first_name, last_name, is_admin, jobs }
-   *   where jobs is { id, title, company_handle, company_name, state }
+   *   where jobs is [jobId, jobId,...]
    *
    * Throws NotFoundError if user not found.
    **/
 
   static async get(username) {
-    const userRes = await db.query(
+    let userHasJobApplications = await db.query(`SELECT username FROM applications WHERE username = '${username}';`)
+    let userRes;
+    let user;
+    if(userHasJobApplications.rows.length > 0){
+      userRes = await db.query(
+          `SELECT json_build_object ('username', users.username, 
+              'firstName', first_name,
+              'lastName', last_name, 
+              'email', email, 
+              'isAdmin', is_admin,
+              'jobs', array_agg(applications.job_id))
+           FROM users JOIN applications ON applications.username = users.username
+           WHERE users.username = $1 GROUP BY users.username;`,
+        [username],
+    );
+    user = userRes.rows[0];
+    if (!user) throw new NotFoundError(`No user: ${username}`);
+    user = user.json_build_object;
+    return user;
+  } else {
+    userRes = await db.query(
           `SELECT username,
                   first_name AS "firstName",
                   last_name AS "lastName",
@@ -134,12 +154,10 @@ class User {
            WHERE username = $1`,
         [username],
     );
-
     const user = userRes.rows[0];
-
     if (!user) throw new NotFoundError(`No user: ${username}`);
-
     return user;
+  }
   }
 
   /** Update user data with `data`.
@@ -203,6 +221,40 @@ class User {
     const user = result.rows[0];
 
     if (!user) throw new NotFoundError(`No user: ${username}`);
+  }
+
+  /** Applies user for a job.
+   *
+   * Returns { application : {username, id} }
+   *
+   * Throws BadRequestError on duplicates or on usernames or jobIds not found in database.
+   **/
+
+  static async applyForJob({ username, id }) {
+    const duplicateCheck = await db.query(
+          `SELECT username
+           FROM applications
+           WHERE username = $1 AND job_id = $2`,
+        [username, id],
+    );
+
+    if (duplicateCheck.rows[0]) {
+      throw new BadRequestError(`Duplicate application.`);
+    }
+
+    const result = await db.query(
+          `INSERT INTO applications (username, job_id)
+           VALUES ($1, $2)
+           RETURNING username, job_id AS "jobId"`,
+        [
+          username,
+          id
+        ],
+    );
+
+    const application = result.rows[0];
+
+    return application;
   }
 }
 

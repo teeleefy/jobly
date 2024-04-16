@@ -13,11 +13,15 @@ const {
   commonAfterEach,
   commonAfterAll,
 } = require("./_testCommon");
+const { application } = require("express");
 
 beforeAll(commonBeforeAll);
 beforeEach(commonBeforeEach);
 afterEach(commonAfterEach);
 afterAll(commonAfterAll);
+
+
+
 
 /************************************** authenticate */
 
@@ -132,7 +136,7 @@ describe("findAll", function () {
 /************************************** get */
 
 describe("get", function () {
-  test("works", async function () {
+  test("works for user with no job applications", async function () {
     let user = await User.get("u1");
     expect(user).toEqual({
       username: "u1",
@@ -140,6 +144,31 @@ describe("get", function () {
       lastName: "U1L",
       email: "u1@email.com",
       isAdmin: false,
+    });
+  });
+
+  test("works for user with job applications", async function () {
+    let res1 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+           VALUES ('j10', 75000, 0.5, 'c1') RETURNING id`);
+    let res2 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+              VALUES ('j20', 95000, 0.5, 'c2') RETURNING id`);
+    let job1 = res1.rows[0];
+    let jobId1 = job1.id;
+
+    let job2 = res2.rows[0];
+    let jobId2 = job2.id;
+
+    let results = await db.query(`INSERT INTO applications (username, job_id)
+           VALUES ('u2', ${jobId1}),
+                  ('u2', ${jobId2})`);
+    let user = await User.get("u2");
+    expect(user).toEqual({
+      username: "u2",
+      firstName: "U2F",
+      lastName: "U2L",
+      email: "u2@email.com",
+      isAdmin: false,
+      jobs: [+`${jobId1}`, +`${jobId2}`]
     });
   });
 
@@ -228,3 +257,75 @@ describe("remove", function () {
     }
   });
 });
+
+describe("applyForJob", function () {
+  
+  test("works", async function () {
+    let res1 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+           VALUES ('j10', 75000, 0.5, 'c1') RETURNING id`);
+    let res2 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+                VALUES ('j20', 95000, 0.5, 'c2') RETURNING id`);
+    let job1 = res1.rows[0];
+    let jobId1 = job1.id;
+
+    let job2 = res2.rows[0];
+    let jobId2 = job2.id;
+
+    let user = await User.applyForJob({username: "u2", id: `${jobId1}`});
+    const res = await db.query(
+        "SELECT * FROM applications WHERE username='u2'");
+    expect(res.rows.length).toEqual(1);
+  });
+
+  test("bad request with dup data", async function () {
+      let res1 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+           VALUES ('j10', 75000, 0.5, 'c1') RETURNING id`);
+      let res2 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+                  VALUES ('j20', 95000, 0.5, 'c2') RETURNING id`);
+      let job1 = res1.rows[0];
+      let jobId1 = job1.id;
+
+      let job2 = res2.rows[0];
+      let jobId2 = job2.id;
+
+      try {
+        await User.applyForJob({username: "u2", id: `${jobId1}`});
+        await User.applyForJob({username: "u2", id: `${jobId1}`});
+        fail();
+      } catch (err) {
+        expect(err instanceof BadRequestError).toBeTruthy();
+      }
+    });
+    
+  test("not found if no such user", async function () {
+    let res1 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+           VALUES ('j10', 75000, 0.5, 'c1') RETURNING id`);
+    let res2 = await db.query(`INSERT INTO jobs(title, salary, equity, company_handle)
+                VALUES ('j20', 95000, 0.5, 'c2') RETURNING id`);
+    let job1 = res1.rows[0];
+    let jobId1 = job1.id;
+
+    let job2 = res2.rows[0];
+    let jobId2 = job2.id;
+
+    try {
+      await User.applyForJob({username: "notUser", id: `${jobId2}`});
+      fail();
+    } catch (err) {
+      expect(err instanceof Error).toBeTruthy();
+    }
+  });
+
+  test("not found if no such job", async function () {
+    try {
+      await User.applyForJob({username: "u2", id: -1});
+      fail();
+    } catch (err) {
+      expect(err instanceof Error).toBeTruthy();
+    }
+  });
+
+
+});
+
+
